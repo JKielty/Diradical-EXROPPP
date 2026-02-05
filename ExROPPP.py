@@ -28,25 +28,39 @@ from ExROPPP_settings_opt import *
 
 
 def read_geom(file):
+    '''
+    Read molecular geometry from file and returns various arrays and integers.
+    
+    Inputs:
+        - file (str): File containing molecular geometries in ... format.
+    Outputs:
+        - array (ndarray): 2D Array of atomic coordinates of all heavy atoms (C then N then Cl) in Angstrom. Shape (natoms, 3).
+                         Used as the atomic coordinates array for electronic structure calculation.
+        - atoms (ndarray): Array of atomic symbols and atomic numbers for all atoms. Listed in order of carbon then nitrogen 
+                         then chlorine then hydrogen. Shape (natoms, 2).
+        - array_all (ndarray): Array of atomic coordinates of all atoms including hydrogen in order to calculate number of bonds 
+                         to nitrogen. Not used if N isn't present.
+        - natoms_{c, n, cl} (int): Number of carbon, nitrogen and chlorine atoms respectively.
+        - natoms (int): Total number of heavy atoms in the molecule.
+    '''
     print("--------------------------------")
     print("Cartesian Coordinates / Angstrom")
     print("--------------------------------\n")
     f=open(file,'r')
-    array=[] # array of coordinates of all atoms excluding hydrogen to be used as the atomic coordinates array for electronic structure calculation. If only carbon present it is array of carbon atoms
-    array_n=[] # array of coordinates of specifically nitrogen atoms
-    array_h=[] # array of coordinates of specifically hydrogen atoms
-    array_cl=[] # array of coordinates of specifically chlorine atoms
-    array_all=[] # array of coordinates of all atoms including hydrogen in order to calculate number of bonds to nitrogen. 
-    #^ array_all has no functionality unless nitrogen present.
-    atoms_c=[] # array of atomic symbols and atomic numbers of all atoms except hydrogen
+    array=[]
+    array_n=[]
+    array_h=[] 
+    array_cl=[] 
+    array_all=[]
+    atoms_c=[] 
     atoms_n=[]
     atoms_cl=[]
     atoms_h=[]
-    natoms_c=0 #no of carbon atoms
-    natoms_n=0 #no of nitrogen atoms
-    natoms_cl=0 #no of chlorine atoms
-    natoms_h=0 #no of hydrogen atoms
-    for line in f:
+    natoms_c=0
+    natoms_n=0 
+    natoms_cl=0 
+    natoms_h=0 
+    for line in f: # Read through lines of file
         splt_ln=line.split()
         if line == '\n':
             break
@@ -85,12 +99,21 @@ def read_geom(file):
     if natoms_h==0:
         array_all = array
     else:
-        array_all=np.concatenate((array,array_h))
-    atoms=atoms_c+atoms_n+atoms_cl+atoms_h # carbon then nitrogen then chlorine then hydrogen
-    return array,atoms,array_all,natoms_c,natoms_n,natoms_cl,natoms_c+natoms_n+natoms_cl
+        array_all = np.concatenate((array,array_h))
+    atoms=atoms_c+atoms_n+atoms_cl+atoms_h
+    natoms = natoms_c+natoms_n+natoms_cl
+    return array, atoms, array_all, natoms_c, natoms_n, natoms_cl, natoms
 
 
 def distance(array):
+    '''
+    Takes a list of atomic coordinates for n atoms and returns an (nxn) array of interatomic distances.
+    
+    Inputs:
+        - array (ndarray): 2D Array of atomic coordinates of all heavy atoms (C then N then Cl) in Angstrom.
+    Returns:
+        -dist_array (ndarray): 2D Array of interatomic distances in Angstrom.
+    '''
     n = array.shape[0]
     dist_array = np.zeros((n, n))
     
@@ -108,7 +131,18 @@ def distance(array):
     
     return dist_array
 
-def adjacency(dist_array,cutoff):
+def adjacency(dist_array, cutoff):
+    '''
+    Takes a 2D array of interatomic distances and a cutoff distance, and returns an adjacency matrix and bond list based on 
+    whether the distance between atoms is less than the cutoff.
+    
+    Inputs:
+        - dist_array (ndarray): 2D Array of interatomic distances in Angstrom.
+        - cutoff (float): Cutoff distance in Angstrom for considering a bond.
+    Returns:
+        - adj_mat (ndarray): 2D adjacency matrix. Value of 1 if atoms are considered bonded, 0 otherwise.
+        - bond_list (list): List of pairs of atom indices that are bonded.
+    '''
     mask = (dist_array < cutoff) & (np.triu(np.ones_like(dist_array, dtype=bool), k=1))  # Upper triangle only (excluding diagonal)
     
     # Create the adjacency matrix
@@ -118,7 +152,6 @@ def adjacency(dist_array,cutoff):
     
     # Generate bond list
     bond_list = np.array(np.nonzero(mask)).T.tolist()  
-    bond_count = len(bond_list)
     return adj_mat, bond_list
 
 
@@ -126,24 +159,66 @@ def array_intersect(lst1, lst2):
     list3 = list(set(lst1).intersection(set(lst2)))
     return list3
 
-def dihedrals(natoms,atoms,coords,dist_array):
-    a2,bond_list=adjacency(dist_array,cutoff)
-    a3=np.dot(a2,a2)
-    a4=np.dot(a3,a2)
+
+def compute_angle(dihedral, coords):
+    '''
+    Computes the dihedral angle between four atoms given their indices and coordinates.
+    
+    Inputs:
+        - dihedral: List of four atom indices (k-i-j-l) for which to compute the dihedral angle.
+        - coords: 2D array of atomic coordinates for all atoms in the molecule.
+    Returns:
+        theta: The dihedral angle in degrees.
+    '''
+    # angle k-i-j-l
+    rij = coords[dihedral[2],:]-coords[dihedral[1],:]
+    rik = coords[dihedral[0],:]-coords[dihedral[1],:]
+    rjl = coords[dihedral[3],:]-coords[dihedral[2],:]
+    r1 = np.cross(rij,rik)
+    r2 = np.cross(rij,rjl)
+    # r1.r2 = |r1||r2|cost
+    theta = np.arccos(np.dot(r1,r2)/(linalg.norm(r1)*linalg.norm(r2))) * 180/np.pi
+    if theta > 90:
+        theta = 180 - theta
+    if theta < 0:
+        theta = -theta
+    return theta
+
+
+def dihedrals(natoms,atoms,coords,dist_array, cutoff=cutoff, single_bond_cutoff=single_bond_cutoff, single_bond_cutoff_cn=single_bond_cutoff_cn):
+    '''
+    Computes dihedral angles for all pairs of atoms that are 4 bonds apart and returns a dictionary of 
+    average dihedral angles for each bond in the molecule.
+    
+    Inputs:
+        - natoms (int): Number of atoms in the molecule.
+        - atoms (ndarray): List of atom types for each atom in the molecule.
+        - coords (ndarray): 2D array of atomic coordinates for all atoms in the molecule.
+        - dist_array (ndarray): 2D array of interatomic distances in Angstrom.
+        - cutoff (float): Cutoff distance in Angstrom for considering a bond.
+        - single_bond_cutoff (float): Cutoff distance in Angstrom for considering a single bond between carbon atoms.
+        - single_bond_cutoff_cn (float): Cutoff distance in Angstrom for considering a single bond between nitrogen atoms.
+    Returns:
+        angles (dict): Dictionary where keys are strings of the form 'i-j' representing a bond between atoms i and j, 
+        and values are the average dihedral angle in degrees for that bond.
+    '''
+    a2, bond_list = adjacency(dist_array,cutoff) # get adjacency matrix and bond list for molecule (1 bond apart)
+    a3=np.dot(a2,a2) # get paths of length 2 between atoms (2 bonds apart)
+    a4=np.dot(a3,a2) # get paths of length 3 between atoms (3 bonds apart)
     lst=[]
     for i in range(natoms):
         for j in range(i+1,natoms):
-            if a4[i,j]!=0 and a3[i,j]==0 and a2[i,j]==0:
+            if a4[i,j]!=0 and a3[i,j]==0 and a2[i,j]==0: # Identify atom pairs that are exactly 3 bonds apart
                 lst.append([i,j])
                 lst.append([j,i])
     angles={}
     for dihedral in lst:
         for bond in bond_list:
-            if a2[dihedral[0],bond[0]]==1 and a2[dihedral[1],bond[1]]==1:
+            if a2[dihedral[0],bond[0]]==1 and a2[dihedral[1],bond[1]]==1: # Checking for continuous 4-atom chain
                 if dist_array[bond[0],bond[1]]>single_bond_cutoff and atoms[bond[0]][0] in ['C','c'] and atoms[bond[1]][0] in ['C','c']:
                     theta=compute_angle([dihedral[0],bond[0],bond[1],dihedral[1]],coords)
                     if '%s-%s'%(bond[0],bond[1]) in angles:
-                        angles['%s-%s'%(bond[0],bond[1])].append(theta)
+                        angles['%s-%s'%(bond[0],bond[1])].append(theta) # Store angles associated with central bond in a list
                     else:
                         angles.update({'%s-%s'%(bond[0],bond[1]):[theta]})
                 elif dist_array[bond[0],bond[1]]>single_bond_cutoff_cn and array_intersect([atoms[bond[0]][0],atoms[bond[1]][0]],['N','n','N2','n2']) in [['N'],['n'],['N2'],['n2']]:
@@ -154,26 +229,22 @@ def dihedrals(natoms,atoms,coords,dist_array):
                         angles.update({'%s-%s'%(bond[0],bond[1]):[theta]})
     for bond in angles:
         avg_angle=sum(angles[bond])/len(angles[bond])
-        angles.update({bond:avg_angle})
+        angles.update({bond:avg_angle}) # Average over all dihedral angles associated with each bond to get one dihedral angle per bond
     return angles 
-    
-def compute_angle(dihedral,coords):
-    # angle k-i-j-l
-    rij = coords[dihedral[2],:]-coords[dihedral[1],:]
-    rik = coords[dihedral[0],:]-coords[dihedral[1],:]
-    rjl = coords[dihedral[3],:]-coords[dihedral[2],:]
-    r1 = np.cross(rij,rik)
-    r2 = np.cross(rij,rjl)
-    # r1.r2 = |r1||r2|cost
-    theta = np.arccos(np.dot(r1,r2)/(linalg.norm(r1)*linalg.norm(r2))) * 180/np.pi
-     # return angle between 0 and (+)90 deg
-    if theta > 90:
-        theta = 180 - theta
-    if theta < 0:
-        theta = -theta
-    return theta
 
-def re_center(coords,atoms,coords_h): 
+
+def re_center(coords, atoms, coords_h):
+    '''
+    Centers the coordinates of the molecule on the center of mass of the heavy atoms and returns the recentred coordinates and the center of mass.
+    
+    Inputs:
+        - coords (ndarray): 2D array of atomic coordinates for all heavy atoms in the molecule.
+        - atoms (ndarray): List of atomic symbols and atomic numbers for all atoms in the molecule.
+        - coords_h (ndarray): 2D array of atomic coordinates for all atoms in the molecule including hydrogen.
+    Returns:
+        - com (ndarray): 1D array of the x, y, z coordinates of the center of mass of the heavy atoms in the molecule.
+        - coords (ndarray): 2D array of atomic coordinates for all heavy atoms in the molecule, recentred with the COM at the origin.
+    '''
     com = np.zeros(3)
     summass=0
     for i in range(coords_h.shape[0]):
@@ -182,22 +253,35 @@ def re_center(coords,atoms,coords_h):
     com[:] /= summass
     for i in range(coords.shape[0]):
         coords[i,:] -= com
-    return com,coords # return recentred coords for heavy atoms only
+    return com, coords
 
-def ntype(array_all,atoms,natomsc,natomsn):
+def ntype(array_all, atoms, natoms_c, natoms_n):
+    ''' Classifies Nitrogen atoms based on their bonding coordination (number of bonds - 2).Calculates the number of neighbors within a cutoff distance for each 
+        Nitrogen atom and returns a list of Nitrogen coordinations then updates the atom labels to reflect their connectivity.
+
+    Args:
+        - array_all (numpy.ndarray): (N, 3) array of all atom coordinates.
+        - atoms (list): List of atom data, where atoms[i][0] is the element label.
+        - natom_c (int): The number of Carbon atoms in the molecule.
+        - natoms_n (int): The number of Nitrogen atoms in the molecule.
+
+    Returns:
+        - nlist (list): A list of coordination indices (nbonds - 2).
+        - atoms (list): The updated atoms list with specific Nitrogen labels.
+    '''
     nlist=[]
-    for natom in range(natomsn):
-        nbonds=-1 #will count distance between atom and itself as a bond so subtract 1 bond to account for this
+    for natom in range(natoms_n):
+        nbonds=-1 #Prevent counting the N atom with itself
         for iatom in range(array_all.shape[0]):
             distn=0
             for k in range(3):
-                distn+=(array_all[natom+natomsc,k]-array_all[iatom,k])**2
+                distn += (array_all[natom + natoms_c,k]-array_all[iatom,k])**2
             distn=np.sqrt(distn)
             if distn < cutoff:
                 nbonds+=1
         nlist.append(nbonds-2)
-        atoms[natom+natomsc][0]='N'+str(nbonds-1)
-    return nlist,atoms   
+        atoms[natom+natoms_c][0]='N'+str(nbonds-1)
+    return nlist, atoms   
    
 #Function to group atoms into starred and unstarred
 def conec(ncarb,array):
