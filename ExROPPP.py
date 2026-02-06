@@ -31,9 +31,9 @@ def read_geom(file):
     '''
     Read molecular geometry from file and returns various arrays and integers.
     
-    Inputs:
+    Args:
         - file (str): File containing molecular geometries in ... format.
-    Outputs:
+    Returns:
         - array (ndarray): 2D Array of atomic coordinates of all heavy atoms (C then N then Cl) in Angstrom. Shape (natoms, 3).
                          Used as the atomic coordinates array for electronic structure calculation.
         - atoms (ndarray): Array of atomic symbols and atomic numbers for all atoms. Listed in order of carbon then nitrogen 
@@ -109,7 +109,7 @@ def distance(array):
     '''
     Takes a list of atomic coordinates for n atoms and returns an (nxn) array of interatomic distances.
     
-    Inputs:
+    Args:
         - array (ndarray): 2D Array of atomic coordinates of all heavy atoms (C then N then Cl) in Angstrom.
     Returns:
         -dist_array (ndarray): 2D Array of interatomic distances in Angstrom.
@@ -136,7 +136,7 @@ def adjacency(dist_array, cutoff):
     Takes a 2D array of interatomic distances and a cutoff distance, and returns an adjacency matrix and bond list based on 
     whether the distance between atoms is less than the cutoff.
     
-    Inputs:
+    Args:
         - dist_array (ndarray): 2D Array of interatomic distances in Angstrom.
         - cutoff (float): Cutoff distance in Angstrom for considering a bond.
     Returns:
@@ -164,7 +164,7 @@ def compute_angle(dihedral, coords):
     '''
     Computes the dihedral angle between four atoms given their indices and coordinates.
     
-    Inputs:
+    Args:
         - dihedral: List of four atom indices (k-i-j-l) for which to compute the dihedral angle.
         - coords: 2D array of atomic coordinates for all atoms in the molecule.
     Returns:
@@ -190,7 +190,7 @@ def dihedrals(natoms,atoms,coords,dist_array, cutoff=cutoff, single_bond_cutoff=
     Computes dihedral angles for all pairs of atoms that are 4 bonds apart and returns a dictionary of 
     average dihedral angles for each bond in the molecule.
     
-    Inputs:
+    Args:
         - natoms (int): Number of atoms in the molecule.
         - atoms (ndarray): List of atom types for each atom in the molecule.
         - coords (ndarray): 2D array of atomic coordinates for all atoms in the molecule.
@@ -237,7 +237,7 @@ def re_center(coords, atoms, coords_h):
     '''
     Centers the coordinates of the molecule on the center of mass of the heavy atoms and returns the recentred coordinates and the center of mass.
     
-    Inputs:
+    Args:
         - coords (ndarray): 2D array of atomic coordinates for all heavy atoms in the molecule.
         - atoms (ndarray): List of atomic symbols and atomic numbers for all atoms in the molecule.
         - coords_h (ndarray): 2D array of atomic coordinates for all atoms in the molecule including hydrogen.
@@ -283,8 +283,18 @@ def ntype(array_all, atoms, natoms_c, natoms_n):
         atoms[natom+natoms_c][0]='N'+str(nbonds-1)
     return nlist, atoms   
    
-#Function to group atoms into starred and unstarred
-def conec(ncarb,array):
+
+def conec(ncarb, dist_array):
+    '''
+    Group atoms in alternant hydrocarbons into starred and unstarred lists.
+    
+    Args:
+        - ncarb (int): Number of carbon atoms in the molecule.
+        - dist_array (ndarray): 2D Array of interatomic distances in Angstrom.
+    Returns:
+        - star (list): List of indices of starred atoms.
+        - unst (list): List of indices of unstarred atoms.
+    '''
     star = []
     unst = []
     star.append(0)
@@ -295,13 +305,13 @@ def conec(ncarb,array):
         uatom = []
         for i in satom:
             for j in range(i+1,ncarb):
-                if array[i,j] < cutoff and j not in unst:
+                if dist_array[i,j] < cutoff and j not in unst:
                     uatom.append(j)
                     unst.append(j)
         satom = []            
         for i in uatom:
             for j in range(i+1,ncarb):
-                if array[i,j] < cutoff and j not in star:
+                if dist_array[i,j] < cutoff and j not in star:
                     satom.append(j)
                     star.append(j)
     if len(star) < len(unst):
@@ -315,7 +325,21 @@ def conec(ncarb,array):
     return star, unst
 
 # Routine to group bonding and antibonding orbitals into coulson-rushbrooke pairs
-def order_orbs(ncarb,orbs,orb_energies,alt):
+def order_orbs(ncarb, orbs, orb_energies, alt):
+    '''
+    Pairs bonding and antibonding orbitals based on Coulson-Rushbrooke symmetry.In alternant hydrocarbons, orbitals occur in pairs with energies 
+    +/- E and identical coefficient magnitudes. This function identifies those pairs by matching energy levels and verifying orbital coefficient magnitudes.
+
+    Args:
+        ncarb (int): Number of carbon atoms/total orbitals.
+        orbs (numpy.ndarray): Matrix of orbital coefficients (columns are orbitals).
+        orb_energies (numpy.ndarray): Array of orbital energies.
+        alt (bool): Current alternacy status of the molecule.
+
+    Returns:
+        - pairs_list (list of lists): Indices of paired [bonding, antibonding] orbitals.
+        - alt (bool): Updated alternacy status (set to False if pairing fails).
+    '''
     print(' ')
     nbond = int((ncarb-1)/2)
     anti_list = list(range(nbond+1,ncarb))
@@ -324,13 +348,13 @@ def order_orbs(ncarb,orbs,orb_energies,alt):
     search = False      
     for ibond in range(nbond):
         if abs(orb_energies[ibond+1] - orb_energies[ibond]) < 1e-6:
-            print("degenerate orbitals %d and %d!"%(ibond+1,ibond+2))
+            print("degenerate orbitals %d and %d!"%(ibond+1,ibond+2)) #CHECK
             search=True
         elif ibond > 0:
             if abs(orb_energies[ibond-1] - orb_energies[ibond]) < 1e-6:
-                print("degenerate orbitals %d and %d!"%(ibond+1,ibond))
+                print("degenerate orbitals %d and %d!"%(ibond+1,ibond)) #CHECK
                 search=True
-        if search == False:
+        if search == False: # If orbital ibond is not degenerate, assign as Coulson-Rushbrooke pair with opposite orbital in energy ordering
             ianti = ncarb-ibond-1
             pairs_list.append([ibond,ianti])
             anti_list.remove(ianti)
@@ -358,16 +382,29 @@ def order_orbs(ncarb,orbs,orb_energies,alt):
                 else:
                     print("absolute energies %4f eV and %4f eV do not match, difference = %4f eV"%(orb_energies[ibond],orb_energies[ianti],abs(abs(orb_energies[ianti]) - abs(orb_energies[ibond]))))
                 if ianti==anti_list[len(anti_list)-1] and search==True: # if all antibonding orbitals are tried and none match the bonding orbital, warn user and switch off alternacy
-                    print("\nWARNING!!: Could not find Coulson-Rushbrooke pair for orbital %d, switching off alternacy. If molecule is alternant, try lowering orbital coefficient matching threshold and re-run calculation. But examine the orbitals first!"%(ibond+1))
+                    print("\nWARNING!!: Could not find Coulson-Rushbrooke pair for orbital %d, switching off alternacy. If molecule is alternant, try lowering orbital coefficient matching threshold and re-run calculation. \
+                          But examine the orbitals first!"%(ibond+1))
                     alt=False
                     return pairs_list, alt
     return pairs_list, alt                   
   
 
 
-#Function to flip signs of orbital coeffs such that for every pair of bonding-antibonding orbitals, 
-#starred atoms retain their sign in antibonding orbital and unstarred atoms have opposite sign 
 def orb_sign(orbs,orb_energies,nelec,dist_array,alt):
+    '''
+    Adjusts orbital phases to satisfy alternant hydrocarbon symmetry.Ensures that starred atoms retain their sign 
+    across a pair, while unstarred atoms undergo a phase inversion in the antibonding orbital.
+
+    Args:
+        orbs (ndarray): Matrix of orbital coefficients (rows=atoms, cols=orbitals).
+        orb_energies (ndarray): Array of orbital energies.
+        nelec (int): Total number of electrons in the system.
+        dist_array (ndarray): Matrix of inter-atomic distances.
+        alt (bool): Alternacy status flag.
+
+    Returns:
+        orbs (ndarray): The orbital coefficient matrix with standardized phases.
+    '''
     if alt==True:
         print('\nGrouping orbitals according to alternacy symmetry...')
         ncarb = orbs.shape[0]
