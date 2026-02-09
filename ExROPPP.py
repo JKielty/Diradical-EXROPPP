@@ -627,17 +627,43 @@ def v_term(dist_array,natoms_c,natoms_n,natoms,n_list,params):
             array[j,i]=array[i,j]
         array[i,i]=Uclcl
     return array
-#Function to form and return density matrix (for doublet monoradical)
+
+
 def density(orbs,natoms,ndocc):
+    '''
+    Function to form and return density matrix (for doublet monoradical).
+    
+    Args:
+        - orbs (ndarray): 2D array of orbital coefficients (rows=atoms, cols=MOs).
+        - natoms (int): Total number of heavy atoms in the molecule.
+        - ndocc (int): Number of doubly-occupied MOs.
+    Returns:
+        - density: 2D array representing the density matrix of the system, with shape (natoms, natoms). 
+                   The density matrix is constructed by summing the contributions from the doubly occupied orbitals
+                   and the singly occupied molecular orbital (SOMO).
+    '''
     density=2*np.dot(orbs[:,:ndocc], orbs[:,:ndocc].T) #doubly occ orbs  
     #optimise this with einsum:
     for u in range(natoms):
         for v in range(natoms):
-            density[u,v] += orbs[u,ndocc]*orbs[v,ndocc] #somo 
+            density[u,v] += orbs[u,ndocc]*orbs[v,ndocc] # Adding density contribution from SOMO
     return density
 
-#Function to form and return open-shell Fock matrix
 def fock(repulsion,hopping,density,natoms_c,natoms_n,natoms,nlist):
+    '''
+    Function to form and return open-shell Fock matrix
+    
+    Args:
+        - repulsion (ndarray): 2D array representing the two-body repulsion integrals for the PPP Hamiltonian, with shape (natoms, natoms).
+        - hopping (ndarray): 2D array representing the one-body hopping integrals for the PPP Hamiltonian, with shape (natoms, natoms).
+        - density (ndarray): 2D array representing the density matrix of the system, with shape (natoms, natoms).
+        - natoms_c (int): Number of carbon atoms in the molecule.
+        - natoms_n (int): Number of nitrogen atoms in the molecule.
+        - natoms (int): Total number of heavy atoms in the molecule.
+        - nlist (list): List of nitrogen coordination indices (nbonds - 2).
+    Returns:
+        - fock_mat (ndarray): 2D array representing the open-shell Fock matrix of the system.
+    '''
     fock_mat=np.zeros_like(repulsion)
     for i in range (natoms):
         for j in range (i,natoms):
@@ -646,9 +672,10 @@ def fock(repulsion,hopping,density,natoms_c,natoms_n,natoms,nlist):
                 for k in range (natoms): 
                     mylist.append(k)
                 mylist.remove(i)
+                # Determining atom type
                 for n in mylist:
-                    if n>=natoms_c and n<natoms_c+natoms_n: #N atom
-                        zk = nlist[n-natoms_c]+1
+                    if n >= natoms_c and n < natoms_c + natoms_n: #N atom
+                        zk = nlist[n-natoms_c] + 1
                     elif n>=natoms_c+natoms_n: # Cl atom
                         zk=2
                     else: # Carbon
@@ -658,10 +685,20 @@ def fock(repulsion,hopping,density,natoms_c,natoms_n,natoms,nlist):
             else:
                 fock_mat[i,j]=-0.5*density[i,j]*repulsion[i,j]
                 fock_mat[j,i]=fock_mat[i,j]
-    fock_mat=fock_mat+hopping
+    fock_mat = fock_mat + hopping
     return fock_mat
 
 def compute_j00(orbs,repulsion,ndocc):
+    """Calculates the Coulomb self-repulsion integral (J00) for the SOMO.
+
+    Args:
+        orbs (ndarray): Matrix of orbital coefficients (rows=atoms, cols=orbitals).
+        repulsion (ndarray): Matrix of inter-atomic electron repulsion integrals.
+        ndocc (int): The number of doubly-occupied orbitals. Gives the appropriate index for the SOMO.
+
+    Returns:
+        J00 (float): The calculated Coulomb repulsion term for the SOMO.
+    """
     J00 = 0
     for l in range(orbs.shape[0]): # atom l
         for m in range(orbs.shape[0]): # atom m
@@ -670,35 +707,50 @@ def compute_j00(orbs,repulsion,ndocc):
 
 #Function to calculate open-shell SCF energy
 def energy(hopping,repulsion,fock_mat,density,orbs,ndocc):
+    """Calculates the total open-shell SCF energy.
+
+    Returns:
+        float: The total calculated SCF energy of the system.
+    """
     J00 = compute_j00(orbs,repulsion,ndocc)
-    return 0.5*(np.dot(density.flatten(),hopping.flatten())+np.dot(density.flatten(),fock_mat.flatten())) - 0.25*J00
+    return 0.5 * (np.dot(density.flatten(), hopping.flatten()) + np.dot(density.flatten(), fock_mat.flatten())) - 0.25 * J00
 
 #Main HF function
-def main_scf(file,params):
+def main_scf(file, params, maxcycles=500, d_tol=1e-7):
+    '''
+    main Hartree-Fock function to perform SCF calculation for a radical molecule using the ExROPPP method.
+    
+    Args:
+        - file (str): The filename of the input geometry file for the radical molecule.
+        - params (dict): The dictionary of PPP parameters for Carbon, Nitrogen and Chlorine.
+        - maxcycles (int): The maximum number of SCF cycles to perform.
+        - d_tol (float): The convergence tolerance for the density matrix.
+        
+    '''
     print("                    ---------------------------------")
     print("                    | Radical ExROPPP Calculation |")
     print("                    ---------------------------------\n")
     print("Molecule: "+str(file)+" radical\n")
     #read in geometry and form distance matrix
     try:
-        coord,atoms_array,coord_w_h,natoms_c,natoms_n,natoms_cl,natoms=read_geom(file)
+        coord,atoms_array,coord_w_h,natoms_c,natoms_n,natoms_cl,natoms = read_geom(file)
     except FileNotFoundError:
         file = f'Molecules/{file}'
-        coord,atoms_array,coord_w_h,natoms_c,natoms_n,natoms_cl,natoms=read_geom(file)
-    dist_array=distance(coord)
-    n_list,atoms=ntype(coord_w_h,atoms_array,natoms_c,natoms_n)
-    nelec=natoms + sum(n_list) + natoms_cl #each pyrolle type N contributes 1 additional e-, so does Cl
+        coord,atoms_array,coord_w_h,natoms_c,natoms_n,natoms_cl,natoms = read_geom(file)
+    dist_array = distance(coord)
+    n_list,atoms = ntype(coord_w_h,atoms_array,natoms_c,natoms_n)
+    nelec = natoms + sum(n_list) + natoms_cl #each pyrolle type N contributes 1 additional e-, so does Cl
     ndocc = int((nelec-1)/2) # no. of doubly-occupied orbitals
     print("\nThere are %d heavy atoms."%natoms)
     print("There are %d electrons in %d orbitals.\n"%(nelec,natoms))
 #compute array of dihedral angles for given molecule (originaly used predefined dictionary of angles but now they are computed directly)
-    angles=dihedrals(natoms_c+natoms_n+natoms_cl,atoms_array,coord,dist_array)
+    angles = dihedrals(natoms_c+natoms_n+natoms_cl,atoms_array,coord,dist_array)
 #call functions to get 1/2-body "integrals"
-    hopping=t_term(dist_array,natoms_c,natoms_n,natoms,n_list,angles,params)
-    repulsion=v_term(dist_array,natoms_c,natoms_n,natoms,n_list,params)
+    hopping = t_term(dist_array,natoms_c,natoms_n,natoms,n_list,angles,params)
+    repulsion = v_term(dist_array,natoms_c,natoms_n,natoms,n_list,params)
 #Diagonalize Huckel Hamiltonian to form initial density guess
-    guess_evals,evecs=np.linalg.eigh(hopping)
-    guess_dens=density(evecs,natoms,ndocc)
+    guess_evals,evecs = np.linalg.eigh(hopping)
+    guess_dens = density(evecs,natoms,ndocc)
 #iterate until convergence 
     energy1=0
     print("\n-------------------------------------")
@@ -707,23 +759,22 @@ def main_scf(file,params):
     print("Starting SCF cycle...\n")
     print("Iter   Energy        Dens Change      Energy Change")
     print("-----------------------------------------------------")
-    for iter in range (501):
-        if iter==500:
-            print("\nEnergy not converged after 500 cycles")
+    for iter in range (maxcycles):
+        if iter == maxcycles-1:
+            print(f"\nEnergy not converged after {maxcycles} cycles")
             break
-        fock_mat=fock(repulsion,hopping,guess_dens,natoms_c,natoms_n,natoms,n_list)
-        evals,orbs=np.linalg.eigh(fock_mat)
-        dens=density(orbs,natoms,ndocc)
-        energy2=energy(hopping,repulsion,fock_mat,dens,orbs,ndocc)
-        conv_crit=np.absolute(guess_dens-dens).max()
-        print(iter, energy2, conv_crit,energy2-energy1)
-        cutoff=0.0000001
-        if conv_crit<cutoff:
+        fock_mat = fock(repulsion,hopping,guess_dens,natoms_c,natoms_n,natoms,n_list)
+        evals,orbs = np.linalg.eigh(fock_mat)
+        dens = density(orbs,natoms,ndocc)
+        energy2 = energy(hopping,repulsion,fock_mat,dens,orbs,ndocc)
+        conv_crit = np.absolute(guess_dens-dens).max()
+        print(iter, energy2, conv_crit, energy2 - energy1)
+        if conv_crit < d_tol:
             return coord,atoms_array,coord_w_h,dist_array,nelec,ndocc,n_list,natoms_c,natoms_n,natoms_cl,energy2,hopping,repulsion,evals,orbs,fock_mat
-        if energy2>energy1:
+        if energy2 > energy1:
             print('\nEnergy rises!')
-        energy1=energy2
-        guess_dens=dens
+        energy1 = energy2
+        guess_dens = dens
 
 def transform(two_body,hf_orbs):
         #fock_mat_mo=np.dot(hf_orbs.T,np.dot(fock_mat,hf_orbs))
