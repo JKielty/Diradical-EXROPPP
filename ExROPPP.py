@@ -431,6 +431,25 @@ def orb_sign(orbs,orb_energies,nelec,dist_array,alt):
 
 #Function to form and return off-diagonal hopping contribution; use cutoff to determine nearest neighbors
 def t_term(dist_array,natoms_c,natoms_n,natoms,n_list,theta,params):
+    '''
+    Forms off-diagonal hopping contribution for PPP Hamiltonian, using cutoff to determine nearest neighbors.
+    
+    Args:
+    - dist_array (ndarray): 2D array of interatomic distances in Angstrom.
+    - natoms_c (int): Number of carbon atoms in the molecule.
+    - natoms_n (int): Number of nitrogen atoms in the molecule.
+    - natoms (int): Total number of heavy atoms in the molecule.
+    - n_list (list): List of nitrogen coordination indices (nbonds - 2).
+    - theta (dict): Dictionary of average dihedral angles for each bond in the molecule, 
+                    with keys as 'i-j' representing a bond between atoms i and j.
+    - params (list of lists): List of PPP parameter sets for carbon, nitrogen and chlorine atoms, 
+                              where each parameter set is a list containing values for A, b, alpha, U, r0 etc.
+    
+    Returns:
+    - array (ndarray): 2D array representing the off-diagonal hopping contribution to the PPP Hamiltonian, with shape (natoms, natoms). 
+                       Non-zero values correspond to hopping terms between atoms that are considered bonded based on the cutoff distance, 
+                       and are calculated using the provided parameters and dihedral angles where applicable.
+    '''
     A=params[0][0]
     b=params[0][1]
     alphan=params[1][0]
@@ -518,8 +537,22 @@ def t_term(dist_array,natoms_c,natoms_n,natoms,n_list,theta,params):
         print("Cl atom %d"%(i+1))
     return array
 
-#Function to form and return two-body repulsion (short and longe range) contribution
 def v_term(dist_array,natoms_c,natoms_n,natoms,n_list,params):
+    '''
+    Forms two-body repulsion contribution for PPP Hamiltonian, with short and long range terms.
+    
+    Args:
+    - dist_array (ndarray): 2D array of interatomic distances in Angstrom.
+    - natoms_c (int): Number of carbon atoms in the molecule.
+    - natoms_n (int): Number of nitrogen atoms in the molecule.
+    - natoms (int): Total number of heavy atoms in the molecule.
+    - n_list (list): List of nitrogen coordination indices (nbonds - 2).
+    - params (list of lists): List of PPP parameter sets for carbon, nitrogen and chlorine atoms, 
+                              where each parameter set is a list containing values for A, b, alpha, U, r0 etc.
+    
+    Returns:
+    - array (ndarray): 2D array giving the repulsion contribution to the PPP Hamiltonian, with shape (natoms, natoms).
+    '''
     U=params[0][2]
     r0=params[0][3]
     Unn=params[1][3]
