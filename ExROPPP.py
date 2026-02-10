@@ -764,7 +764,7 @@ def main_scf(file, params, maxcycles=500, d_tol=1e-7):
             print(f"\nEnergy not converged after {maxcycles} cycles")
             break
         fock_mat = fock(repulsion,hopping,guess_dens,natoms_c,natoms_n,natoms,n_list)
-        evals,orbs = np.linalg.eigh(fock_mat)
+        evals, orbs = np.linalg.eigh(fock_mat)
         dens = density(orbs,natoms,ndocc)
         energy2 = energy(hopping,repulsion,fock_mat,dens,orbs,ndocc)
         conv_crit = np.absolute(guess_dens-dens).max()
@@ -776,35 +776,30 @@ def main_scf(file, params, maxcycles=500, d_tol=1e-7):
         energy1 = energy2
         guess_dens = dens
 
-def transform(two_body,hf_orbs):
-        #fock_mat_mo=np.dot(hf_orbs.T,np.dot(fock_mat,hf_orbs))
-#place two-body terms into four index tensor----in site basis entire classes were zeroed out allowing storage in 2-D, 
-#but this does not carry over into MO basis so prepare for this here
-        two_body_4i=np.zeros((hf_orbs.shape[0],hf_orbs.shape[0],hf_orbs.shape[0],hf_orbs.shape[0]))
-        for i in range (hf_orbs.shape[0]):
-                for j in range (i,hf_orbs.shape[0]):
-                        two_body_4i[i,i,j,j]=two_body[i,j]
-                        two_body_4i[j,j,i,i]=two_body[i,j]
-#four index transformation
-        mat1=np.einsum("ij,klmi->klmj",hf_orbs,two_body_4i)
-        mat2=np.einsum("ij,klim->kljm",hf_orbs,mat1)
-        mat3=np.einsum("ij,kilm->kjlm",hf_orbs,mat2)
-        two_body_mo=np.einsum("ij,iklm->jklm",hf_orbs,mat3)
-        return two_body_mo
-def transform(two_body,hf_orbs):
-        #fock_mat_mo=np.dot(hf_orbs.T,np.dot(fock_mat,hf_orbs))
-#place two-body terms into four index tensor----in site basis entire classes were zeroed out allowing storage in 2-D, 
-#but this does not carry over into MO basis so prepare for this here
-        two_body_4i=np.zeros((hf_orbs.shape[0],hf_orbs.shape[0],hf_orbs.shape[0],hf_orbs.shape[0]))
-        for i in range (hf_orbs.shape[0]):
-                for j in range (i,hf_orbs.shape[0]):
-                        two_body_4i[i,i,j,j]=two_body[i,j]
-                        two_body_4i[j,j,i,i]=two_body[i,j]
-#four index transformation
-        two_body_mo = np.einsum("ia, jb, kc, ld, ijkl -> abcd",
+def transform(two_body, hf_orbs):
+    '''
+    Places two-body terms (V_ij) into a four-index tensor (ij|kl) and performs a four-index transformation to the molecular orbital basis.
+    
+    Args:
+        two_body: 2D array of two-body repulsion integrals in the atomic orbital basis. Usually repulsion array from v_term function. Shape (Natoms, Natoms)
+        hf_orbs: 2D array of Hartree-Fock orbital coefficients in the atomic orbital basis. Shape (Natoms, Natoms)
+    
+    Returns:
+        two_body_mo: 4D array of two-body repulsion integrals in the molecular orbital basis. Shape (Natoms, Natoms, Natoms, Natoms)
+    '''
+    Natoms = hf_orbs.shape[0]
+    two_body_4i = np.zeros((Natoms, Natoms, Natoms, Natoms))
+    for i in range (Natoms):
+            for j in range (i,Natoms):
+                    two_body_4i[i,i,j,j]=two_body[i,j]
+                    two_body_4i[j,j,i,i]=two_body[i,j]
+    #four index transformation
+    two_body_mo = np.einsum("ia, jb, kc, ld, ijkl -> abcd",
                              hf_orbs, hf_orbs, hf_orbs, hf_orbs, two_body_4i, optimize= 'optimal' )
-         
-        return two_body_mo
+    return two_body_mo
+    
+
+    
 def broaden(FWHM,osc,energy):
     if brdn_typ == 'wavelength' and line_typ == 'lorentzian':
         eqn="+%04.3f*1/(1+((%04.3f-x)/(%s/2))**2)" %(osc,evtonm/energy,FWHM)
@@ -1487,14 +1482,25 @@ def dipole(coords,atoms,norbs,hforbs,ndocc,nstates,basis,cis_option,hetero):
 
 
 def cisd_ham_rot(ndocc,energy0,orb_energies,rep_tens):
-    o0 = ndocc# no. of doubly-occupied orbitals
-    nstates = 3*ndocc**2 +2*ndocc +1
-    cish = np.zeros((nstates,nstates))     
+    '''
+    Form the XCIS Hamiltonian matrix in the rotated CSF basis. 
+    Populates the off diagonals with various 2e- terms found in Table IX in SI for EXROPPP paper.
+    
+    Args:
+        ndocc (int): Number of doubly occupied orbitals.
+        energy0 (float): Ground state HF energy.
+        orb_energies (array): HF orbital energies.
+        rep_tens (array): 4D tensor giving two-electron repulsion integrals in the MO basis.
+    Returns:
+    '''
+    o0 = ndocc # Index of SOMO
+    nstates = 3 * ndocc ** 2 + 2 * ndocc + 1 # 3*ndocc^2 doubles, 2 * ndocc singles, 1 reference configuration
+    cish = np.zeros((nstates,nstates)) 
     #1 <0|H|0>
     cish[0,0] = energy0
     #2 <0|H|ibar->0bar> 
     for i in range (ndocc): 
-        cish[0,i+1] = 0.5*rep_tens[i,o0,o0,o0] #cish[0,i+1] = fock_mat_mo[i,o0] + 0.5*rep_tens[i,o0,o0,o0]
+        cish[0,i+1] = 0.5 * rep_tens[i,o0,o0,o0] #cish[0,i+1] = fock_mat_mo[i,o0] + 0.5*rep_tens[i,o0,o0,o0]
         cish[i+1,0] = cish[0,i+1]
     #3 <0|H|0->j'>
     for j in range (ndocc):
@@ -1650,6 +1656,21 @@ def cisd_ham_rot(ndocc,energy0,orb_energies,rep_tens):
     return cish
 
 def cisd_rot(ndocc,norbs,coords,atoms,energy0,repulsion,orb_energies,hf_orbs, file):
+    '''
+    Calculates monoradical excited states in rotated (CSF) basis using the CISD method. 
+    
+    Args:
+        ndocc (int): Number of doubly occupied orbitals
+        norbs (int): Total number of orbitals
+        coords (array): Array of atomic coordinates
+        atoms (array): Array of atomic symbols
+        energy0 (float): Ground state energy
+        repulsion (array): 2-electron repulsion integrals in AO basis
+        orb_energies (array): HF orbital energies
+        hf_orbs (array): HF molecular orbitals
+        file (str): Name of file to write output to (without extension)
+
+    '''
     with open(f'Excited_States/{file}_excitedstates.xyz','w') as out:
         print("")
         print("------------------------")
@@ -2018,7 +2039,7 @@ def hetero_cisd(ndocc,norbs,coords,atoms,energy0,repulsion,orb_energies,hf_orbs,
         np.savetxt('big_ham_benz.csv', cis_ham_het, delimiter=',') 
         o0 = ndocc
         nunocc = norbs-ndocc-1
-        nstates = 3*ndocc*nunocc +ndocc+nunocc +1
+        nstates = 3 * ndocc * nunocc + ndocc + nunocc + 1
         if states_cutoff_option == 'states' and states_to_print <= nstates:
             rng = states_to_print
             print('Lowest %d states. WARNING - Some states may not be included in spectrum.\n'%states_to_print)
