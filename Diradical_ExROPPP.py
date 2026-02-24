@@ -9,8 +9,6 @@ from ExROPPP_settings_opt import *
 
 
 
-
-
 # parser = argparse.ArgumentParser()
 # parser.add_argument('geometry', type = str, help = 'file containing geometry')
 # args = parser.parse_args()
@@ -20,8 +18,6 @@ from ExROPPP_settings_opt import *
 #  [ -3.25983816 ,-24.50393011 ,  1.76554162 , 13.0486315  ,  1.18938422],
 #  [-17.50211252 ,-23.67958463 ,  1.43383449 , 18.08184948 ,  1.12853335],
 #  [-10.18396573 ,-26.36242115 ,  1.45855408 ,  9.61199125 ,  2.23245629]] 
-
-
 
 
 
