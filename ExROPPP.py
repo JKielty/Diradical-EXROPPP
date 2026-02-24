@@ -829,6 +829,21 @@ def write_gnu(strng,file):
 
    
 def spin(ndocc,norbs,cis_coeffs,nstates,cis_option,hetero):
+    '''
+    Forms the S^2 matrix projected into the XCIS basis.
+    
+    Parameters:
+        ndocc (int): Number of doubly occupied orbitals in the system.
+        norbs (int): Total number of molecular orbitals in the system.
+        cis_coeffs (ndarray): 2D array of CIS coefficients for the excited states, with shape (nstates, ncis), where ncis is the number of configurations in the CIS expansion.
+        nstates (int): Number of excited states considered in the CIS calculation.
+        cis_option (str): String indicating the type of CIS calculation performed (e.g., 'cis' or 'cisd').
+        hetero (str): String indicating whether the molecule contains heteroatoms ('yes' or 'no').
+
+    Returns:
+        spinmat (ndarray): 2D array representing the S^2 matrix in the XCIS basis, with shape (nstates, nstates).
+        deltassq (int): Standard deviation for S^2 values in a pure doublet state, used for assessing spin contamination.
+    '''
     spinmat = np.zeros((nstates,nstates)) 
     if hetero=='no':
         #1 <0|S**2|0>
