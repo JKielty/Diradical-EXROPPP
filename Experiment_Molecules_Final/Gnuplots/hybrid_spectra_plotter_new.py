@@ -117,9 +117,9 @@ broad_combined = broad_combined / combined_max
 plt.style.use('seaborn-v0_8-paper')
 fig, ax = plt.subplots(figsize=(6, 4.8))
 
-ax.plot(wavelength, broad_singlet, color='darkblue',  linestyle='dotted', linewidth=1.2, label='Singlet')
-ax.plot(wavelength, broad_triplet, color='darkgreen', linestyle='dotted', linewidth=1.2, label='Triplet')
-ax.plot(wavelength, broad_combined, color='firebrick', linewidth=2, label='Weighted Combination')
+ax.plot(wavelength, broad_singlet, color='darkblue',  linestyle='dotted', linewidth=2, label='Singlet')
+ax.plot(wavelength, broad_triplet, color='darkgreen', linestyle='dotted', linewidth=2, label='Triplet')
+#ax.plot(wavelength, broad_combined, color='firebrick', linewidth=2, label='Weighted Combination')
 
 if args.expfile is not None:
     exp_wl, exp_abs = [], []
@@ -144,7 +144,7 @@ ax.set_xlabel('Wavelength / nm')
 ax.set_ylabel('Normalised Absorbance')
 ax.set_xlim(args.xmin, args.xmax)
 ax.set_ylim(0, 1.05)
-ax.legend()
+ax.legend(fontsize=16)
 
 plt.tight_layout()
 plt.savefig(f'{args.molecule_name}_spectrum.png', dpi=400, transparent=True)

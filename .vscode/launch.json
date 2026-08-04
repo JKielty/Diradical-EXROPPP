@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "~/MSci_Code/Diradical-EXROPPP/main.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/test_molecules",
+            "cwd": "${workspaceFolder}/Test_Molecules_Final",
             "args": ["~/MSci_Code/Diradical-EXROPPP/Test_Molecules_Final/Trimethylenemethane.xyz"],
             "justMyCode": true
         }
