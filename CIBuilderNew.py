@@ -2037,9 +2037,9 @@ def get_full_CIMatrix(ndocc, norbs, energy0, Fock, rep_tens, ci_level):
 
 def print_transition_summary(out_file, ci_energies, osc_array1, osc_array3,
                              s2_array, singlet, triplet, rng,
-                             main_threshold=0.01,
+                             main_threshold=0.005,
                              low_energy_cutoff=2.5,
-                             low_energy_threshold=0.001):
+                             low_energy_threshold=0.0005):
     """
     Print a formatted summary table of optically significant transitions from
     both the singlet and triplet ground states.
