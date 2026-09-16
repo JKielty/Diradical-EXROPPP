@@ -5,6 +5,7 @@ import scipy.linalg as linalg
 from subprocess import getoutput
 import sys
 from collections import deque
+from ExROPPP import transform
 from ExROPPP_settings_opt import *
 import os
 
@@ -891,9 +892,6 @@ def main_scf(file, params, rotation_matrix=None, converged_orbs=None, maxcycles=
     fock_mat = fock(repulsion, hopping, density_rot, natoms_c, natoms_n, natoms, n_list)
     energy2 = energy(hopping, repulsion, fock_mat, density_rot, orbs, ndocc)
     '''
-    print('ENERGY0:', energy2)
-    
-    rep_tens = transform(repulsion, orbs)
     #write_fcidump_mo(file, nelec, orbs, rep_tens, hopping, repulsion, natoms, natoms_c, natoms_n, n_list)
     
     if rotation_matrix is not None:
@@ -911,15 +909,8 @@ def main_scf(file, params, rotation_matrix=None, converged_orbs=None, maxcycles=
         fock_mat = fock(repulsion, hopping, dens, natoms_c, natoms_n, natoms, n_list)
         energy2 = energy(hopping, repulsion, fock_mat, dens, orbs, ndocc)
     
-    print('\nDelocalising SOMOs')
-    orbs = delocalise_somos(orbs, SOMO1, SOMO2)
-    for iorb in range(natoms):
-        print('orbital number', iorb + 1)
-        print(np.around(orbs[:, iorb], decimals=2))
-    density_rot = density(orbs, ndocc)
-    fock_mat = fock(repulsion, hopping, density_rot, natoms_c, natoms_n, natoms, n_list)
-    energy2 = energy(hopping, repulsion, fock_mat, density_rot, orbs, ndocc)
-    
+    print('ENERGY0:', energy2)    
+    rep_tens = transform(repulsion, orbs)
     
     return coord,atoms_array,coord_w_h,dist_array,nelec,ndocc,n_list,natoms_c,natoms_n,natoms_cl,energy2,rep_tens,orbs,fock_mat
 
