@@ -891,6 +891,10 @@ def main_scf(file, params, rotation_matrix=None, converged_orbs=None, maxcycles=
     density_rot = density(orbs, ndocc)
     fock_mat = fock(repulsion, hopping, density_rot, natoms_c, natoms_n, natoms, n_list)
     energy2 = energy(hopping, repulsion, fock_mat, density_rot, orbs, ndocc)
+    print('Rotated SOMO 0:')
+    print(np.around(orbs[:, SOMO1], decimals=2))
+    print('Rotated SOMO 0p:')
+    print(np.around(orbs[:, SOMO2], decimals=2))
     '''
     #write_fcidump_mo(file, nelec, orbs, rep_tens, hopping, repulsion, natoms, natoms_c, natoms_n, n_list)
     

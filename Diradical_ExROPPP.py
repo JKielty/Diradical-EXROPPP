@@ -277,9 +277,9 @@ def ci_rot(ndocc,norbs,coords,atoms,energy0,rep_tens,fock_mat,hf_orbs, file, ci_
         tdms = (state0_tdms, state1_tdms) 
         
         # Print information about CI states
-        strngs, osc_arrays, s2_array = print_ci_info(out, ci_energies, ci_coeffs, ndocc, norbs, tdms, rng, cutoff_energy, ci_level, csf_tol=0.05)
+        strngs, osc_arrays = print_ci_info(out, ci_energies, ci_coeffs, ndocc, norbs, tdms, dip_array, rng, cutoff_energy, ci_level, csf_tol=0.05)
         strngs = (strngs[0][1:], strngs[1][1:])
-    return strngs, ci_energies - ci_energies[0], osc_arrays, s2_array
+    return strngs, ci_energies - ci_energies[0], osc_arrays
 
 
 
@@ -299,5 +299,5 @@ def rad_calc(file,params,rotation_matrix=None,converged_orbs=None):
     print('\nOrbital occupation numbers:')
     for i in range(dens_mo.shape[0]):
         print("%d: %f"%(i+1,dens_mo[i,i]))
-    strngs, ci_energies_array, osc_arrays, s2_array = ci_rot(ndocc, natoms, coord, atoms_array, energy0, rep_tens, fock_mo, hf_orbs, file, ci_level=3)
-    return strngs, ci_energies_array, osc_arrays, s2_array
+    strngs, ci_energies_array, osc_arrays = ci_rot(ndocc, natoms, coord, atoms_array, energy0, rep_tens, fock_mo, hf_orbs, file, ci_level=3)
+    return strngs, ci_energies_array, osc_arrays
