@@ -2,8 +2,10 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend — required in WSL and headless environments
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import argparse
 import re
+from pathlib import Path
 
 def parse_spectrum(inputfile):
     '''
@@ -98,10 +100,47 @@ def write_combined_dat(wavelength, broad_combined, molecule_name):
     print(f"Combined spectrum written to '{outfile}'")
     return outfile
 
+def load_spectrum(filepath, wavelength):
+    '''
+    Load a spectrum from a .gp (gnuplot Lorentzian) or .dat (two-column) file,
+    returning intensities on the given wavelength grid.
+
+    .gp  → parse the Lorentzian expression and evaluate it via evaluate_spectrum.
+    .dat → load the two-column file with np.loadtxt and interpolate onto
+           wavelength using np.interp so the returned array always has the same
+           length regardless of the grid stored in the file.
+
+    Args:
+        filepath (str): Path to a .gp or .dat spectrum file.
+        wavelength (ndarray): Target wavelength grid in nm.
+    Returns:
+        broad (ndarray): Spectral intensities on wavelength.
+    '''
+    ext = Path(filepath).suffix.lower()
+    if ext == '.dat':
+        data = np.loadtxt(filepath, comments='#')
+        return np.interp(wavelength, data[:, 0], data[:, 1])
+    else:
+        plot_cmd = parse_spectrum(filepath)
+        return evaluate_spectrum(plot_cmd, wavelength)
+
+
+# Labels, colours, and linestyles for the three SCF schemes, in order:
+#   F^eff  |  |^1 OS>  |  |^3 OS>
+SCF_LABELS  = ['Singlet',
+               'Triplet']
+SCF_COLOURS    = ["#1E5E0B",        # Singlet
+                  "#1768D3"]        # Triplet
+SCF_LINESTYLES = ['dotted', 'dotted']
+
+
 # Argument parser setup
 parser = argparse.ArgumentParser(description="Plots the computed spectrum produced by ExROPPP")
-parser.add_argument('singlet_file', type=str, help="Gnuplot file for singlet spectrum")
-parser.add_argument('triplet_file', type=str, help="Gnuplot file for triplet spectrum")
+parser.add_argument('spectrum_files', nargs=2,
+                    metavar=('singlet.gp', 'triplet.gp'),
+                    help="Spectrum files for the singlet and triplet spectra, in order: "
+                         "|^1 OS>, |^3 OS>. "
+                         "Each may be a .gp gnuplot file or a .dat two-column file.")
 parser.add_argument('molecule_name', type=str, help="The name of the molecule")
 parser.add_argument('delta_e', type=float, help="Singlet-triplet energy gap in eV (E_singlet - E_triplet).")
 parser.add_argument('--temperature', type=float, default=298.15,
@@ -120,9 +159,17 @@ args = parser.parse_args()
 # so that normalisation is never affected by the chosen x-axis limits.
 wavelength = np.linspace(200, 1000, 1601)
 
+# Plot
+mpl.rcParams['font.family']      = 'serif'
+mpl.rcParams['font.serif']       = ['Times New Roman', 'Times']
+mpl.rcParams['mathtext.fontset']  = 'stix'
+
+plt.style.use('default')
+fig, ax = plt.subplots(figsize=(6, 5))
+
 # Parse spectra
-singlet_cmd = parse_spectrum(args.singlet_file)
-triplet_cmd = parse_spectrum(args.triplet_file)
+singlet_cmd = parse_spectrum(args.spectrum_files[0])
+triplet_cmd = parse_spectrum(args.spectrum_files[1])
 
 mask = (wavelength >= args.xmin) & (wavelength <= args.xmax)
 
@@ -153,18 +200,17 @@ if args.normalise == True:
 plt.style.use('seaborn-v0_8-paper')
 fig, ax = plt.subplots(figsize=(6, 4.8))
 
-ax.plot(wavelength, broad_singlet, color='darkblue',  linestyle='dotted', linewidth=1.2, label='Singlet')
-ax.plot(wavelength, broad_triplet, color='darkgreen', linestyle='dotted', linewidth=1.2, label='Triplet')
-ax.plot(wavelength, broad_combined, color='firebrick', linewidth=2, label='Weighted Combination')
+for filepath, label, colour, ls in zip(args.spectrum_files, SCF_LABELS, SCF_COLOURS, SCF_LINESTYLES):
+    broad = load_spectrum(filepath, wavelength)
+    broad = (broad - np.min(broad)) / (np.max(broad[mask]) - np.min(broad))
+    ax.plot(wavelength, broad, color=colour, linestyle=ls, linewidth=1.5, label=label)
+
+ax.plot(wavelength, broad_combined, color="#8B0404", linewidth=1.5, label='Weighted Combination')
 
 if args.expfile is not None:
     exp_wl, exp_abs = [], []
     with open(args.expfile, 'r', encoding='utf-8-sig') as f:
         for line in f:
-            # Strip leading/trailing whitespace and stray quote characters,
-            # then split on any mix of commas and whitespace so the same
-            # loader handles CSV, TSV, space-separated .txt files, and
-            # formats with trailing commas.
             line = line.strip().strip('"')
             tokens = [t.strip().strip('"') for t in re.split(r'[,\s]+', line) if t.strip()]
             if len(tokens) < 2:
@@ -173,16 +219,17 @@ if args.expfile is not None:
                 exp_wl.append(float(tokens[0]))
                 exp_abs.append(float(tokens[1]))
             except ValueError:
-                pass   # skip header/label lines
+                pass
     print(f"Parsed {len(exp_wl)} rows from '{args.expfile}'")
-    exp_wl = np.array(exp_wl)
+    exp_wl  = np.array(exp_wl)
     exp_abs = np.array(exp_abs)
-    exp_abs = exp_abs / np.max(exp_abs)   # normalise to [0, 1] to match calculated curves
-    ax.plot(exp_wl, exp_abs, color='black', linestyle='--', label='Experimental', linewidth=2)
+    exp_abs = (exp_abs - np.min(exp_abs)) / (np.max(exp_abs) - np.min(exp_abs))
+    ax.plot(exp_wl, exp_abs, color='black', linestyle='dashdot', linewidth=1.5, label='Experimental')
 
-#ax.set_title(f'{args.molecule_name}')
-ax.set_xlabel('Wavelength / nm')
-ax.set_ylabel('Normalised Absorbance')
+
+ax.set_xlabel('Wavelength / nm', fontsize=12)
+ax.set_ylabel('Normalised Absorbance', fontsize=12)
+ax.tick_params(axis='both', labelsize=12)
 ax.set_xlim(args.xmin, args.xmax)
 if args.normalise:
     ax.set_ylim(0, 1.05)
@@ -195,7 +242,10 @@ else:
         if exp_mask.any():
             ymax_vals.append(np.max(exp_abs[exp_mask]))
     ax.set_ylim(0, max(ymax_vals) * 1.05)
-ax.legend()
+ax.legend(fontsize=11, framealpha=0)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 
 plt.tight_layout()
 plt.savefig(f'{args.molecule_name}_spectrum.png', dpi=400, transparent=True)

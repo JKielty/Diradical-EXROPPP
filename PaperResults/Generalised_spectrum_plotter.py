@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import argparse
 import re
+from itertools import cycle
 from pathlib import Path
 
 
@@ -73,30 +74,31 @@ def load_spectrum(filepath, wavelength):
         return evaluate_spectrum(plot_cmd, wavelength)
 
 
-# Labels, colours, and linestyles for the three SCF schemes, in order:
-#   F^eff  |  |^1 OS>  |  |^3 OS>
-SCF_LABELS  = [r'$F^{\mathrm{eff}}$',
-               r'$|{^1\mathrm{OS}}\rangle$',
-               r'$|{^3\mathrm{OS}}\rangle$']
-SCF_COLOURS    = ['#0072B2',   # deep blue       → F^eff
-                  '#D55E00',   # vermillion       → |¹OS⟩
-                  '#009E73']   # teal green       → |³OS⟩
-SCF_LINESTYLES = ['solid', 'solid', 'solid']
+# Colour-blind-friendly (Okabe–Ito) palette, cycled if more spectra than colours
+# are supplied. The first three match the original F^eff / ³OS / ¹OS colours.
+COLOURS = ['#D55E00',   # vermillion
+           '#009E73',   # teal green
+           '#0072B2',   # deep blue
+           '#CC79A7',   # reddish purple
+           '#E69F00',   # orange
+           '#56B4E9',   # sky blue
+           '#F0E442']   # yellow
 
 # Argument parser setup
 parser = argparse.ArgumentParser(
-    description="Plots up to three ExROPPP spectra (F^eff, |^1 OS>, |^3 OS>) "
+    description="Plots any number of ExROPPP spectra, each with its own label, "
                 "alongside an optional experimental spectrum. "
                 "Accepts .gp (gnuplot Lorentzian) or .dat (two-column) files for "
                 "each spectrum — useful when passing Boltzmann-combined .dat files "
                 "produced by Hybrid_spectrum_plotter.py."
 )
-parser.add_argument('spectrum_files', nargs=3,
-                    metavar=('feff.gp', 'singlet_os.gp', 'triplet_os.gp'),
-                    help="Spectrum files for the three SCF schemes, in order: "
-                         "F^eff, |^1 OS>, |^3 OS>. "
-                         "Each may be a .gp gnuplot file or a .dat two-column file.")
 parser.add_argument('molecule_name', type=str, help="The name of the molecule")
+parser.add_argument('-s', '--spectrum', nargs=2, action='append',
+                    metavar=('FILE', 'LABEL'), required=True,
+                    help="A spectrum file (.gp or .dat) and its legend label. "
+                         "Repeat for each spectrum, e.g. "
+                         "-s feff.gp '$F^{\\mathrm{eff}}$' -s other.dat 'My label'. "
+                         "Labels support matplotlib mathtext (wrap in $...$).")
 parser.add_argument('--xmin', type=float, default=250,
                     help="Minimum wavelength to plot in nm. Default 250.")
 parser.add_argument('--xmax', type=float, default=800,
@@ -117,12 +119,12 @@ mpl.rcParams['mathtext.fontset']  = 'stix'
 plt.style.use('default')
 fig, ax = plt.subplots(figsize=(6, 5))
 
-# Load, normalise, and plot each of the three spectra.
+# Load, normalise, and plot each spectrum.
 # load_spectrum() handles both .gp and .dat files transparently.
-for filepath, label, colour, ls in zip(args.spectrum_files, SCF_LABELS, SCF_COLOURS, SCF_LINESTYLES):
+for (filepath, label), colour in zip(args.spectrum, cycle(COLOURS)):
     broad = load_spectrum(filepath, wavelength)
     broad = (broad - np.min(broad)) / (np.max(broad[mask]) - np.min(broad))
-    ax.plot(wavelength, broad, color=colour, linestyle=ls, linewidth=1.5, label=label)
+    ax.plot(wavelength, broad, color=colour, linestyle='solid', linewidth=1.5, label=label)
 
 if args.expfile is not None:
     exp_wl, exp_abs = [], []
@@ -141,7 +143,7 @@ if args.expfile is not None:
     exp_wl  = np.array(exp_wl)
     exp_abs = np.array(exp_abs)
     exp_abs = (exp_abs - np.min(exp_abs)) / (np.max(exp_abs) - np.min(exp_abs))
-    ax.plot(exp_wl, exp_abs, color='black', linestyle='dashdot', linewidth=1.5, label='Experimental')
+    ax.plot(exp_wl, exp_abs, color='black', linestyle='dashdot', linewidth=1.5, label='Experiment')
 
 ax.set_xlabel('Wavelength / nm', fontsize=12)
 ax.set_ylabel('Normalised Absorbance', fontsize=12)

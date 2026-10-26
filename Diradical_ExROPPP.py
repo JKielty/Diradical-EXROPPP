@@ -262,6 +262,121 @@ def ci_rot(ndocc,norbs,coords,atoms,energy0,rep_tens,fock_mat,hf_orbs, file, ci_
 
         # Calculate transition dipole moment matrix
         dip_array = get_full_TDM(ndocc, norbs, coords, hf_orbs, ci_level)[0]
+        
+        
+        print("Summary of reference states before CI")
+        
+        print("<OS1|H|OS1> = ", ham_rot[0,0])
+        print("<OS1|H|ZW-> = ", ham_rot[0,1])
+        print("<OS1|H|ZW+> = ", ham_rot[0,2])
+        print("<ZW-|H|ZW-> = ", ham_rot[1,1])
+        print("<ZW-|H|ZW+> = ", ham_rot[1,2])
+        print("<ZW+|H|ZW+> = ", ham_rot[2,2])
+        
+        
+        print("<OS1|mu|OS1> = ", dip_array[0,0,:])
+        print("<OS1|mu|ZW-> = ", dip_array[0,1,:])
+        print("<OS1|mu|ZW+> = ", dip_array[0,2,:])
+        print("<ZW-|mu|ZW-> = ", dip_array[1,1,:])
+        print("<ZW-|mu|ZW+> = ", dip_array[1,2,:])
+        print("<ZW+|mu|ZW+> = ", dip_array[2,2,:])
+        
+        nvirt = norbs - ndocc - 2
+        
+        print("")
+        print("Summary of low-energy single excitations before CI")
+        print("<DS(1-->0)|H|DS(1-->0)> = ", ham_rot[ndocc+2,ndocc+2])
+        print("<DS(1-->0)|H|OS1> = ", ham_rot[ndocc+2,0])
+        print("<DS(1-->0)|H|ZW-> = ", ham_rot[ndocc+2,1])
+        print("<DS(1-->0)|H|ZW+> = ", ham_rot[ndocc+2,2])
+        print("<DS(2-->0)|H|DS(2-->0)> = ", ham_rot[ndocc+1,ndocc+1])
+        print("<DS(2-->0)|H|OS1> = ", ham_rot[ndocc+1,0])
+        print("<DS(2-->0)|H|ZW-> = ", ham_rot[ndocc+1,1])
+        print("<DS(2-->0)|H|ZW+> = ", ham_rot[ndocc+1,2])
+        print("<DS(3-->0)|H|DS(3-->0)> = ", ham_rot[ndocc,ndocc])
+        print("<DS(3-->0)|H|OS1> = ", ham_rot[ndocc,0])
+        print("<DS(3-->0)|H|ZW-> = ", ham_rot[ndocc,1])
+        print("<DS(3-->0)|H|ZW+> = ", ham_rot[ndocc,2])
+        print("")
+        print("<DS(1-->0')|H|DS(1-->0')> = ", ham_rot[2*ndocc+2,2*ndocc+2])
+        print("<DS(1-->0')|H|OS1> = ", ham_rot[2*ndocc+2,0])
+        print("<DS(1-->0')|H|ZW-> = ", ham_rot[2*ndocc+2,1])
+        print("<DS(1-->0')|H|ZW+> = ", ham_rot[2*ndocc+2,2])
+        print("<DS(2-->0')|H|DS(2-->0')> = ", ham_rot[2*ndocc+1,2*ndocc+1])
+        print("<DS(2-->0')|H|OS1> = ", ham_rot[2*ndocc+1,0])
+        print("<DS(2-->0')|H|ZW-> = ", ham_rot[2*ndocc+1,1])
+        print("<DS(2-->0')|H|ZW+> = ", ham_rot[2*ndocc+1,2])
+        print("<DS(3-->0')|H|DS(3-->0')> = ", ham_rot[2*ndocc,2*ndocc])
+        print("<DS(3-->0')|H|OS1> = ", ham_rot[2*ndocc,0])
+        print("<DS(3-->0')|H|ZW-> = ", ham_rot[2*ndocc,1])
+        print("<DS(3-->0')|H|ZW+> = ", ham_rot[2*ndocc,2])
+        print("")
+        print("<SV(0-->1')|H|SV(0-->1')> = ", ham_rot[2*ndocc+3,2*ndocc+3])
+        print("<SV(0-->1')|H|OS1> = ", ham_rot[2*ndocc+3,0])
+        print("<SV(0-->1')|H|ZW-> = ", ham_rot[2*ndocc+3,1])
+        print("<SV(0-->1')|H|ZW+> = ", ham_rot[2*ndocc+3,2])
+        print("<SV(0-->2')|H|SV(0-->2')> = ", ham_rot[2*ndocc+4,2*ndocc+4])
+        print("<SV(0-->2')|H|OS1> = ", ham_rot[2*ndocc+4,0])
+        print("<SV(0-->2')|H|ZW-> = ", ham_rot[2*ndocc+4,1])
+        print("<SV(0-->2')|H|ZW+> = ", ham_rot[2*ndocc+4,2])
+        print("<SV(0-->3')|H|SV(0-->3')> = ", ham_rot[2*ndocc+5,2*ndocc+5])
+        print("<SV(0-->3')|H|OS1> = ", ham_rot[2*ndocc+5,0])
+        print("<SV(0-->3')|H|ZW-> = ", ham_rot[2*ndocc+5,1])
+        print("<SV(0-->3')|H|ZW+> = ", ham_rot[2*ndocc+5,2])
+        print("")
+        print("<SV(0'-->1')|H|SV(0'-->1')> = ", ham_rot[nvirt+2*ndocc+3,nvirt+2*ndocc+3])
+        print("<SV(0'-->1')|H|OS1> = ", ham_rot[nvirt+2*ndocc+3,0])
+        print("<SV(0'-->1')|H|ZW-> = ", ham_rot[nvirt+2*ndocc+3,1])
+        print("<SV(0'-->1')|H|ZW+> = ", ham_rot[nvirt+2*ndocc+3,2])
+        print("<SV(0'-->2')|H|SV(0-->2')> = ", ham_rot[nvirt+2*ndocc+4,nvirt+2*ndocc+4])
+        print("<SV(0'-->2')|H|OS1> = ", ham_rot[nvirt+2*ndocc+4,0])
+        print("<SV(0'-->2')|H|ZW-> = ", ham_rot[nvirt+2*ndocc+4,1])
+        print("<SV(0'-->2')|H|ZW+> = ", ham_rot[nvirt+2*ndocc+4,2])
+        print("<SV(0'-->3')|H|SV(0-->3')> = ", ham_rot[nvirt+2*ndocc+5,nvirt+2*ndocc+5])
+        print("<SV(0'-->3')|H|OS1> = ", ham_rot[nvirt+2*ndocc+5,0])
+        print("<SV(0'-->3')|H|ZW-> = ", ham_rot[nvirt+2*ndocc+5,1])
+        print("<SV(0'-->3')|H|ZW+> = ", ham_rot[nvirt+2*ndocc+5,2])
+        print("")
+        print("<DS(1-->0)|mu|OS1> = ", dip_array[ndocc+2,0])
+        print("<DS(1-->0)|mu|ZW-> = ", dip_array[ndocc+2,1])
+        print("<DS(1-->0)|mu|ZW+> = ", dip_array[ndocc+2,2])
+        print("<DS(2-->0)|mu|OS1> = ", dip_array[ndocc+1,0])
+        print("<DS(2-->0)|mu|ZW-> = ", dip_array[ndocc+1,1])
+        print("<DS(2-->0)|mu|ZW+> = ", dip_array[ndocc+1,2])
+        print("<DS(3-->0)|mu|OS1> = ", dip_array[ndocc,0])
+        print("<DS(3-->0)|mu|ZW-> = ", dip_array[ndocc,1])
+        print("<DS(3-->0)|mu|ZW+> = ", dip_array[ndocc,2])
+        print("")
+        print("<DS(1-->0')|mu|OS1> = ", dip_array[2*ndocc+2,0])
+        print("<DS(1-->0')|mu|ZW-> = ", dip_array[2*ndocc+2,1])
+        print("<DS(1-->0')|mu|ZW+> = ", dip_array[2*ndocc+2,2])
+        print("<DS(2-->0')|mu|OS1> = ", dip_array[2*ndocc+1,0])
+        print("<DS(2-->0')|mu|ZW-> = ", dip_array[2*ndocc+1,1])
+        print("<DS(2-->0')|mu|ZW+> = ", dip_array[2*ndocc+1,2])
+        print("<DS(3-->0')|mu|OS1> = ", dip_array[2*ndocc,0])
+        print("<DS(3-->0')|mu|ZW-> = ", dip_array[2*ndocc,1])
+        print("<DS(3-->0')|mu|ZW+> = ", dip_array[2*ndocc,2])
+        print("")
+        print("<SV(0-->1')|mu|OS1> = ", dip_array[2*ndocc+3,0])
+        print("<SV(0-->1')|mu|ZW-> = ", dip_array[2*ndocc+3,1])
+        print("<SV(0-->1')|mu|ZW+> = ", dip_array[2*ndocc+3,2])
+        print("<SV(0-->2')|mu|OS1> = ", dip_array[2*ndocc+4,0])
+        print("<SV(0-->2')|mu|ZW-> = ", dip_array[2*ndocc+4,1])
+        print("<SV(0-->2')|mu|ZW+> = ", dip_array[2*ndocc+4,2])
+        print("<SV(0-->3')|mu|OS1> = ", dip_array[2*ndocc+5,0])
+        print("<SV(0-->3')|mu|ZW-> = ", dip_array[2*ndocc+5,1])
+        print("<SV(0-->3')|mu|ZW+> = ", dip_array[2*ndocc+5,2])
+        print("")
+        print("<SV(0'-->1')|mu|OS1> = ", dip_array[nvirt+2*ndocc+3,0])
+        print("<SV(0'-->1')|mu|ZW-> = ", dip_array[nvirt+2*ndocc+3,1])
+        print("<SV(0'-->1')|mu|ZW+> = ", dip_array[nvirt+2*ndocc+3,2])
+        print("<SV(0'-->2')|mu|OS1> = ", dip_array[nvirt+2*ndocc+4,0])
+        print("<SV(0'-->2')|mu|ZW-> = ", dip_array[nvirt+2*ndocc+4,1])
+        print("<SV(0'-->2')|mu|ZW+> = ", dip_array[nvirt+2*ndocc+4,2])
+        print("<SV(0'-->3')|mu|OS1> = ", dip_array[nvirt+2*ndocc+5,0])
+        print("<SV(0'-->3')|mu|ZW-> = ", dip_array[nvirt+2*ndocc+5,1])
+        print("<SV(0'-->3')|mu|ZW+> = ", dip_array[nvirt+2*ndocc+5,2])
+
 
         
         print("Checking that the Dipole matrix is symmetric (a value of zero means matrix is symmetric) ... ")
@@ -291,8 +406,12 @@ def rad_calc(file,params,rotation_matrix=None,converged_orbs=None):
     com,coord = re_center(coord,atoms_array,coord_w_h)
     natoms=np.shape(coord)[0]
 
-
-    fock_mo = np.dot(hf_orbs.T,np.dot(fock_mat,hf_orbs))
+    hf_orbs, fock_mo, order = sort_orbitals_by_fock_energy(hf_orbs, fock_mat)
+    rep_tens = reorder_mo_tensor(rep_tens, order)
+    print('\nOrbitals reordered by Fock-matrix diagonal (orig idx -> new idx):')
+    for new_i, old_i in enumerate(order):
+        marker = '  <-- moved' if new_i != old_i else ''
+        print("  %d -> %d%s" % (old_i+1, new_i+1, marker))
     
     dens_mat = density(hf_orbs, ndocc)
     dens_mo = np.dot(hf_orbs.T, np.dot(dens_mat, hf_orbs))
@@ -301,3 +420,71 @@ def rad_calc(file,params,rotation_matrix=None,converged_orbs=None):
         print("%d: %f"%(i+1,dens_mo[i,i]))
     strngs, ci_energies_array, osc_arrays = ci_rot(ndocc, natoms, coord, atoms_array, energy0, rep_tens, fock_mo, hf_orbs, file, ci_level=3)
     return strngs, ci_energies_array, osc_arrays
+
+
+def sort_orbitals_by_fock_energy(hf_orbs, fock_mat):
+    """
+    Reorder MOs by the diagonal elements of the Fock matrix in the MO basis.
+
+    Orbitals coming from an SCF that was optimized for an open-shell
+    singlet diradical aren't guaranteed to come out in aufbau (energy)
+    order. Downstream code that assumes orbital index <-> occupation
+    (e.g. "first ndocc columns are doubly occupied") can then silently
+    swap occupied/virtual character. Diagonalizing F in the current MO
+    basis and sorting by the diagonal gives an approximate orbital-energy
+    ordering (exact if F is already diagonal in this basis, i.e. these
+    are true canonical orbitals; approximate otherwise, but still a good
+    proxy for occupied-vs-virtual character since occupied orbitals sit
+    much lower than virtuals).
+
+    Parameters
+    ----------
+    hf_orbs : ndarray, shape (natoms, natoms)
+        MO coefficients, one orbital per column, in their original order.
+    fock_mat : ndarray, shape (natoms, natoms)
+        Fock matrix in the AO basis.
+
+    Returns
+    -------
+    hf_orbs_sorted : ndarray, shape (natoms, natoms)
+        Columns of hf_orbs reordered by increasing Fock-diagonal "energy".
+    fock_mo_sorted : ndarray, shape (natoms, natoms)
+        Fock matrix in the MO basis, rows/cols permuted to match.
+    order : ndarray, shape (natoms,)
+        Permutation applied, i.e. hf_orbs_sorted[:, k] = hf_orbs[:, order[k]].
+    """
+    fock_mo = np.dot(hf_orbs.T, np.dot(fock_mat, hf_orbs))
+    orb_energies = np.diag(fock_mo)
+
+    # stable sort so that near-degenerate orbitals (equal to within
+    # numerical noise) keep their relative original order rather than
+    # being shuffled arbitrarily
+    order = np.argsort(orb_energies, kind='stable')
+
+    hf_orbs_sorted = hf_orbs[:, order]
+    fock_mo_sorted = fock_mo[np.ix_(order, order)]
+    return hf_orbs_sorted, fock_mo_sorted, order
+
+def reorder_mo_tensor(tensor, order):
+    """
+    Permute every axis of an MO-indexed array/tensor by the same
+    orbital ordering. Use this for anything whose indices all run
+    over orbitals -- e.g. a 4-index two-electron integral tensor
+    (pq|rs) in the MO basis -- so that after sorting the orbitals,
+    integral element [i,j,k,l] still refers to the same four
+    (relabelled) orbitals it did before sorting.
+
+    Parameters
+    ----------
+    tensor : ndarray, shape (natoms,)*ndim
+        MO-basis tensor, e.g. two-electron repulsion integrals.
+    order : ndarray, shape (natoms,)
+        Permutation from sort_orbitals_by_fock_energy, i.e. the same
+        one applied to hf_orbs' columns.
+
+    Returns
+    -------
+    ndarray, same shape as tensor, with every axis permuted by order.
+    """
+    idx = np.ix_(*([order] * tensor.ndim))
+    return tensor[idx]
